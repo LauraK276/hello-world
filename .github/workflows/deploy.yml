@@ -5,13 +5,17 @@ on:
     branches:
       - main
 
-env:
-  OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
-
 jobs:
   build-job:
     name: Build Job
     runs-on: ubuntu-latest
+
+    env:
+      OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
+      OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
+      OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
+      OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+      OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
 
     steps:
       - name: Checkout
@@ -23,7 +27,6 @@ jobs:
         with:
           name: "spring-projects/spring-boot-hello-app"
           compartment: ${{ secrets.OCI_COMPARTMENT_OCID }}
-
 
       - name: Log into OCIR
         uses: oracle-actions/login-ocir@v1.3.0
@@ -52,6 +55,10 @@ jobs:
 
     env:
       OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
+      OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
+      OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
+      OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+      OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
 
     steps:
       - name: Checkout
@@ -65,4 +72,5 @@ jobs:
 
       - name: Deploy to OKE
         run: kubectl apply -f spring-app.yaml
+
 
