@@ -39,18 +39,23 @@ jobs:
         with:
           name: "spring-projects/spring-boot-hello-app"
           compartment: ${{ secrets.OCI_COMPARTMENT_OCID }}
+          region: ${{ secrets.OCI_CLI_REGION }}
 
       - name: Log into OCIR
         uses: oracle-actions/login-ocir@v1.3.0
         id: login-ocir
         with:
           auth_token: ${{ secrets.OCI_AUTH_TOKEN }}
+          region: ${{ secrets.OCI_CLI_REGION }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: oracle
           java-version: 17
+
+      - name: Make mvnw executable
+        run: chmod +x ./mvnw
 
       - name: Build JAR
         run: ./mvnw package
@@ -62,6 +67,7 @@ jobs:
         run: docker push fra.ocir.io/frvwt5kzjktn/spring-projects/spring-boot-hello-app:latest
 
   deploy-job:
+    name: Deploy Job
     needs: build-job
     runs-on: ubuntu-latest
 
@@ -93,8 +99,8 @@ jobs:
         id: kubectl-oke-action
         with:
           cluster: ${{ secrets.OKE_CLUSTER_OCID }}
+          region: ${{ secrets.OCI_CLI_REGION }}
 
       - name: Deploy to OKE
         run: kubectl apply -f spring-app.yaml
-
 
