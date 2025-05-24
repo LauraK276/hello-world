@@ -1,52 +1,77 @@
-name: Build and Deploy to OKE using OCI CLI
+name: cicd-demo
 
 on:
   push:
     branches:
       - main
 
+env:
+  OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
+  OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
+  OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+  OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
+  OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
+
 jobs:
-  deploy:
+  build-job:
+    name: Build Job
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v3
+      - name: Start build job
+        run: echo "Starting the build job."
 
-      - name: Install OCI CLI
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get or create an OCIR Repository
+        uses: oracle-actions/get-ocir-repository@v1.2.1
+        id: get-ocir-repository
+        with:
+          name: "spring-projects/spring-boot-hello-app"
+          compartment: ${{ secrets.OCI_COMPARTMENT_OCID }}
+
+      - name: Log into OCIR
+        uses: oracle-actions/login-ocir@v1.2.1
+        id: login-ocir
+        with:
+          auth_token: ${{ secrets.OCI_AUTH_TOKEN }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: oracle
+          java-version: 17
+
+      - name: Assemble JAR
         run: |
-          curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh | bash -s -- --accept-all-defaults
-          echo "$HOME/bin" >> $GITHUB_PATH
+          ./mvnw package
 
-      - name: Configure OCI CLI
-        run: |
-          mkdir -p ~/.oci
-          echo "${{ secrets.OCI_CLI_KEY_CONTENT }}" > ~/.oci/oci_api_key.pem
-          chmod 600 ~/.oci/oci_api_key.pem
-          cat <<EOF > ~/.oci/config
-[DEFAULT]
-user=${{ secrets.OCI_CLI_USER }}
-fingerprint=${{ secrets.OCI_CLI_FINGERPRINT }}
-key_file=~/.oci/oci_api_key.pem
-tenancy=${{ secrets.OCI_CLI_TENANCY }}
-region=${{ secrets.OCI_CLI_REGION }}
-EOF
-
-      - name: Generate kubeconfig
-        run: |
-          oci ce cluster create-kubeconfig --cluster-id ${{ secrets.OKE_CLUSTER_OCID }} --file $HOME/.kube/config --region ${{ secrets.OCI_CLI_REGION }} --token-version 2.0.0 --kube-endpoint PUBLIC_ENDPOINT
-          chmod 600 $HOME/.kube/config
-
-      - name: Build Docker image
+      - name: Docker Build
         run: |
           docker build -t fra.ocir.io/frvwt5kzjktn/spring-projects/spring-boot-hello-app:latest .
 
-      - name: Login and Push to OCIR
+      - name: Docker Push
         run: |
-          echo "${{ secrets.OCI_AUTH_TOKEN }}" | docker login fra.ocir.io -u "${{ secrets.OCI_CLI_USER }}" --password-stdin
           docker push fra.ocir.io/frvwt5kzjktn/spring-projects/spring-boot-hello-app:latest
 
+  deploy-job:
+    needs: build-job
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Start deploy job
+        run: echo "Starting the deploy job."
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Kubectl for OKE
+        uses: oracle-actions/configure-kubectl-oke@v1.3.2
+        id: kubectl-oke-action
+        with:
+          cluster: ${{ secrets.OKE_CLUSTER_OCID }}
+
       - name: Deploy to OKE
-        run: |
-          kubectl apply -f spring-app.yaml
+        run: kubectl apply -f spring-app.yaml
 
