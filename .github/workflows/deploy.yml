@@ -18,24 +18,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Start build job
-        run: echo "Starting the build job."
-
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Get or create an OCIR Repository
-        uses: oracle-actions/get-ocir-repository@v1.2.1
+        uses: oracle-actions/get-ocir-repository@v1.3.0
         id: get-ocir-repository
         with:
           name: "spring-projects/spring-boot-hello-app"
           compartment: ${{ secrets.OCI_COMPARTMENT_OCID }}
+          region: ${{ secrets.OCI_CLI_REGION }}
 
       - name: Log into OCIR
-        uses: oracle-actions/login-ocir@v1.2.1
+        uses: oracle-actions/login-ocir@v1.3.0
         id: login-ocir
         with:
           auth_token: ${{ secrets.OCI_AUTH_TOKEN }}
+          region: ${{ secrets.OCI_CLI_REGION }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -43,34 +42,29 @@ jobs:
           distribution: oracle
           java-version: 17
 
-      - name: Assemble JAR
-        run: |
-          ./mvnw package
+      - name: Build JAR
+        run: ./mvnw package
 
-      - name: Docker Build
-        run: |
-          docker build -t fra.ocir.io/frvwt5kzjktn/spring-projects/spring-boot-hello-app:latest .
+      - name: Docker build
+        run: docker build -t fra.ocir.io/frvwt5kzjktn/spring-projects/spring-boot-hello-app:latest .
 
-      - name: Docker Push
-        run: |
-          docker push fra.ocir.io/frvwt5kzjktn/spring-projects/spring-boot-hello-app:latest
+      - name: Docker push
+        run: docker push fra.ocir.io/frvwt5kzjktn/spring-projects/spring-boot-hello-app:latest
 
   deploy-job:
     needs: build-job
     runs-on: ubuntu-latest
 
     steps:
-      - name: Start deploy job
-        run: echo "Starting the deploy job."
-
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure Kubectl for OKE
-        uses: oracle-actions/configure-kubectl-oke@v1.3.2
+      - name: Configure Kubectl
+        uses: oracle-actions/configure-kubectl-oke@v1.5.0
         id: kubectl-oke-action
         with:
           cluster: ${{ secrets.OKE_CLUSTER_OCID }}
+          region: ${{ secrets.OCI_CLI_REGION }}
 
       - name: Deploy to OKE
         run: kubectl apply -f spring-app.yaml
