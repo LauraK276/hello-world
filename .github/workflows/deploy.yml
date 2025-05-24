@@ -5,13 +5,13 @@ on:
     branches:
       - main
 
+env:
+  OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
+
 jobs:
   build-job:
     name: Build Job
     runs-on: ubuntu-latest
-
-    env:
-      OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
 
     steps:
       - name: Checkout
@@ -24,44 +24,5 @@ jobs:
           name: "spring-projects/spring-boot-hello-app"
           compartment: ${{ secrets.OCI_COMPARTMENT_OCID }}
 
-      - name: Log into OCIR
-        uses: oracle-actions/login-ocir@v1.3.0
-        id: login-ocir
-        with:
-          auth_token: ${{ secrets.OCI_AUTH_TOKEN }}
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: oracle
-          java-version: 17
-
-      - name: Build JAR
-        run: ./mvnw package
-
-      - name: Docker build
-        run: docker build -t fra.ocir.io/frvwt5kzjktn/spring-projects/spring-boot-hello-app:latest .
-
-      - name: Docker push
-        run: docker push fra.ocir.io/frvwt5kzjktn/spring-projects/spring-boot-hello-app:latest
-
-  deploy-job:
-    needs: build-job
-    runs-on: ubuntu-latest
-
-    env:
-      OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure Kubectl for OKE
-        uses: oracle-actions/configure-kubectl-oke@v1.5.0
-        id: kubectl-oke-action
-        with:
-          cluster: ${{ secrets.OKE_CLUSTER_OCID }}
-
-      - name: Deploy to OKE
-        run: kubectl apply -f spring-app.yaml
+      ...
 
